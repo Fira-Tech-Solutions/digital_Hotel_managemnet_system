@@ -1,0 +1,6 @@
+{
+  "name": "Adama Hotel Admin",
+  "description": "Premium hotel and restaurant management platform for Adama Hotel with live order queue, kitchen display system, menu management, QR code generator, theme customization, staff roster, and operational settings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

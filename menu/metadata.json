@@ -1,0 +1,6 @@
+{
+  "name": "Adama Hotel Dining",
+  "description": "An intimate fine dining digital experience for Adama Hotel with menu ordering, dish customization, and live status tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

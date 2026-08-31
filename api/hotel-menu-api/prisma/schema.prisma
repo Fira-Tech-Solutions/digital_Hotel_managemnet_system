@@ -1,0 +1,234 @@
+// ==========================================================
+// Hotel Digital Menu System — Prisma Schema
+// Single-hotel deployment (each hotel gets its own API instance)
+// ==========================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------
+// Enums
+// -----------------------------
+
+enum StaffRole {
+  OWNER
+  MANAGER
+  KITCHEN
+  WAITER
+}
+
+enum OrderStatus {
+  PENDING       // just submitted by guest, sitting in "New Orders"
+  ACCEPTED      // chef tapped Accept, moved to "Preparing"
+  READY         // food is ready
+  SERVED        // delivered to table
+  CANCELLED     // rejected / cancelled
+}
+
+enum DietaryTag {
+  VEGETARIAN
+  VEGAN
+  GLUTEN_FREE
+  SPICY
+  NUT_FREE
+  HALAL
+}
+
+// -----------------------------
+// Hotel profile & theme
+// -----------------------------
+
+model Hotel {
+  id            String   @id @default(uuid())
+  name          String
+  slug          String   @unique
+  logoUrl       String?
+  description   String?
+  contactEmail  String?
+  contactPhone  String?
+  address       String?
+  operatingHours String?
+  languages     String[] @default(["en"])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  theme         HotelTheme?
+  categories    Category[]
+  tables        Table[]
+  staff         Staff[]
+  orders        Order[]
+}
+
+model HotelTheme {
+  id              String   @id @default(uuid())
+  hotel           Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelId         String   @unique
+  templateId      String   @default("classic-grid")
+  primaryColor    String   @default("#1c1c1c")
+  secondaryColor  String   @default("#c9a24b")
+  backgroundColor String   @default("#faf7f2")
+  fontFamily      String   @default("Inter")
+  cardStyle       String   @default("shadow")
+  layoutDensity   String   @default("comfortable")
+  enabledComponents String[] @default([])
+  updatedAt       DateTime @updatedAt
+}
+
+// -----------------------------
+// Staff / Auth
+// -----------------------------
+
+model Staff {
+  id           String    @id @default(uuid())
+  hotel        Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelId      String
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         StaffRole @default(WAITER)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+
+  updatedOrders Order[]  @relation("StatusUpdatedBy")
+}
+
+// -----------------------------
+// Menu structure
+// -----------------------------
+
+model Category {
+  id        String   @id @default(uuid())
+  hotel     Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelId   String
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  items     MenuItem[]
+
+  @@index([hotelId])
+}
+
+model MenuItem {
+  id             String       @id @default(uuid())
+  category       Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId     String
+  name           String
+  description    String?
+  price          Decimal      @db.Decimal(10, 2)
+  imageUrl       String?
+  isAvailable    Boolean      @default(true)
+  isChefSpecial  Boolean      @default(false)
+  prepTimeMins   Int?
+  dietaryTags    DietaryTag[] @default([])
+  sortOrder      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  customizationGroups CustomizationGroup[]
+  orderItems          OrderItem[]
+
+  @@index([categoryId])
+}
+
+// e.g. "Spice Level", "Extras" — a group of choosable options for an item
+model CustomizationGroup {
+  id          String   @id @default(uuid())
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  menuItemId  String
+  name        String
+  isRequired  Boolean  @default(false)
+  allowMultiple Boolean @default(false)
+
+  options     CustomizationOption[]
+}
+
+model CustomizationOption {
+  id                    String              @id @default(uuid())
+  group                 CustomizationGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId               String
+  label                 String
+  priceDelta            Decimal             @default(0) @db.Decimal(10, 2)
+
+  orderItemCustomizations OrderItemCustomization[]
+}
+
+// -----------------------------
+// Tables & QR codes
+// -----------------------------
+
+model Table {
+  id          String   @id @default(uuid())
+  hotel       Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelId     String
+  number      String   // e.g. "12", "Poolside-3"
+  qrToken     String   @unique @default(uuid())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  orders      Order[]
+
+  @@index([hotelId])
+}
+
+// -----------------------------
+// Orders
+// -----------------------------
+
+model Order {
+  id              String      @id @default(uuid())
+  hotel           Hotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelId         String
+  table           Table       @relation(fields: [tableId], references: [id])
+  tableId         String
+  status          OrderStatus @default(PENDING)
+  notes           String?
+  subtotal        Decimal     @db.Decimal(10, 2)
+  total           Decimal     @db.Decimal(10, 2)
+  guestSessionId  String?     // anonymous session id from the menu app, for status polling
+  acceptedBy      Staff?      @relation("StatusUpdatedBy", fields: [acceptedById], references: [id])
+  acceptedById    String?
+  acceptedAt      DateTime?
+  readyAt         DateTime?
+  servedAt        DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items           OrderItem[]
+
+  @@index([hotelId, status])
+  @@index([tableId])
+  @@index([guestSessionId])
+}
+
+model OrderItem {
+  id           String   @id @default(uuid())
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId      String
+  menuItem     MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItemId   String
+  nameSnapshot String   // snapshot in case menu item changes later
+  priceSnapshot Decimal @db.Decimal(10, 2)
+  quantity     Int      @default(1)
+  itemNotes    String?
+
+  customizations OrderItemCustomization[]
+}
+
+model OrderItemCustomization {
+  id            String              @id @default(uuid())
+  orderItem     OrderItem           @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  orderItemId   String
+  option        CustomizationOption @relation(fields: [optionId], references: [id])
+  optionId      String
+  labelSnapshot String
+  priceDeltaSnapshot Decimal        @default(0) @db.Decimal(10, 2)
+}

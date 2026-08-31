@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "Montserrat", sans-serif;
+  --color-gold: #d4af37;
+}
+
+body {
+  @apply bg-[#0a0a0a] text-gray-200 antialiased;
+}
+
+@keyframes scrollLine {
+  0% {
+    transform: translateY(-100%);
+  }
+  50% {
+    transform: translateY(0%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.animate-scrollLine {
+  animation: scrollLine 1.8s ease-in-out infinite;
+}

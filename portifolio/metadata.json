@@ -1,0 +1,6 @@
+{
+  "name": "Adama Hotel Dining",
+  "description": "A luxury fine dining restaurant landing page for Adama Hotel",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
