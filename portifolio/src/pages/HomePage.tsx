@@ -21,9 +21,23 @@ export default function HomePage() {
         frameExt="jpg"
         scrollHeight={450}
         overlays={[
-          { text: 'ADAMA HOTEL', range: [0, 0.2], position: 'center', style: 'headline' },
-          { text: 'An estate at the edge of the Rift Valley', range: [0, 0.25], position: 'lower-subline', style: 'subline' },
-          { text: 'Book Your Stay', range: [0.15, 0.45], position: 'lower-button', style: 'button' },
+          { text: 'ADAMA HOTEL', range: [0, 0.22], position: 'center', style: 'headline', instant: true },
+          { text: 'An estate at the edge of the Rift Valley', range: [0, 0.22], position: 'lower-subline', style: 'subline', instant: true },
+
+          { text: 'Nestled among ancient acacia trees', range: [0.18, 0.38], position: 'mid-left', style: 'subline' },
+          { text: 'Where the land meets the sky', range: [0.22, 0.42], position: 'bottom-right', style: 'eyebrow' },
+
+          { text: '12 Suites of Distinction', range: [0.35, 0.55], position: 'mid-right', style: 'subline' },
+          { text: 'Handcrafted interiors, panoramic views', range: [0.38, 0.58], position: 'top-left', style: 'eyebrow' },
+
+          { text: 'Farm-to-Table Dining', range: [0.5, 0.68], position: 'mid-left', style: 'subline' },
+          { text: 'Executive Chef James Kariuki', range: [0.52, 0.7], position: 'bottom-right', style: 'eyebrow' },
+
+          { text: 'The Rift Valley Wellness Spa', range: [0.62, 0.8], position: 'mid-right', style: 'subline' },
+          { text: 'Restore · Rejuvenate · Renew', range: [0.65, 0.82], position: 'top-left', style: 'eyebrow' },
+
+          { text: 'Your Story Begins Here', range: [0.78, 0.95], position: 'center', style: 'headline' },
+          { text: 'Book Your Stay', range: [0.82, 0.95], position: 'lower-button', style: 'button' },
         ]}
       />
 

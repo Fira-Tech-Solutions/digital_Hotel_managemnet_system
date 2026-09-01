@@ -3,9 +3,10 @@ import { useRef, useEffect, useState, useCallback, useMemo, type CSSProperties }
 interface OverlayMessage {
   text: string;
   range: [number, number];
-  position: 'upper-third' | 'center' | 'lower-third' | 'lower-headline' | 'lower-subline' | 'lower-button';
+  position: 'upper-third' | 'center' | 'lower-third' | 'lower-headline' | 'lower-subline' | 'lower-button' | 'mid-left' | 'mid-right' | 'top-left' | 'bottom-right';
   style?: 'eyebrow' | 'headline' | 'subline' | 'button';
   align?: 'left' | 'center' | 'right';
+  instant?: boolean;
 }
 
 interface ScrollRevealHeroProps {
@@ -26,6 +27,10 @@ const positionStyles: Record<string, CSSProperties> = {
   'lower-headline': { bottom: '28%', left: 0, right: 0, textAlign: 'center' },
   'lower-subline': { bottom: '20%', left: 0, right: 0, textAlign: 'center' },
   'lower-button': { bottom: '12%', left: 0, right: 0, textAlign: 'center' },
+  'mid-left': { top: '50%', left: '6%', right: 'auto', transform: 'translateY(-50%)', textAlign: 'left', maxWidth: '40%' },
+  'mid-right': { top: '50%', right: '6%', left: 'auto', transform: 'translateY(-50%)', textAlign: 'right', maxWidth: '40%' },
+  'top-left': { top: '20%', left: '6%', right: 'auto', textAlign: 'left', maxWidth: '45%' },
+  'bottom-right': { bottom: '15%', right: '6%', left: 'auto', textAlign: 'right', maxWidth: '45%' },
 };
 
 const styleClasses: Record<string, string> = {
@@ -202,6 +207,7 @@ export default function ScrollRevealHero({
         const rangeStart = parseFloat(el.dataset.rangeStart || '0');
         const rangeEnd = parseFloat(el.dataset.rangeEnd || '1');
         const style = el.dataset.style || 'headline';
+        const instant = el.dataset.instant === 'true';
 
         let opacity = 0;
         let translateY = 0;
@@ -211,6 +217,13 @@ export default function ScrollRevealHero({
 
           if (style === 'button') {
             opacity = localProgress > 0.7 ? easeOutCubic((localProgress - 0.7) / 0.3) : 0;
+          } else if (instant) {
+            // Instant: fully visible at start, hold, then fade out at end
+            if (localProgress > 0.7) {
+              opacity = easeOutCubic((1 - localProgress) / 0.3);
+            } else {
+              opacity = 1;
+            }
           } else {
             if (localProgress < 0.3) {
               opacity = easeOutCubic(localProgress / 0.3);
@@ -276,10 +289,8 @@ export default function ScrollRevealHero({
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll, { passive: true });
 
-    // Force initial draw after a tick so layout is settled
-    requestAnimationFrame(() => {
-      onScroll();
-    });
+    // Force initial draw immediately so instant overlays are visible on first paint
+    onScroll();
 
     return () => {
       window.removeEventListener('scroll', onScroll);
@@ -339,6 +350,7 @@ export default function ScrollRevealHero({
             data-range-start={overlay.range[0]}
             data-range-end={overlay.range[1]}
             data-style={overlay.style || 'headline'}
+            data-instant={overlay.instant ? 'true' : 'false'}
             className="absolute z-20 px-6 sm:px-12"
             style={{
               ...positionStyles[overlay.position],
