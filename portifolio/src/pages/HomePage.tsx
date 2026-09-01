@@ -21,10 +21,9 @@ export default function HomePage() {
         frameExt="jpg"
         scrollHeight={450}
         overlays={[
-          { text: 'WELCOME TO', range: [0, 0.12], position: 'upper-third', style: 'eyebrow' },
-          { text: 'ADAMA HOTEL', range: [0.05, 0.25], position: 'center', style: 'headline' },
-          { text: 'Where Extraordinary Becomes Unforgettable', range: [0.15, 0.35], position: 'lower-subline', style: 'subline' },
-          { text: 'Book Your Stay', range: [0.25, 0.5], position: 'lower-button', style: 'button' },
+          { text: 'ADAMA HOTEL', range: [0, 0.2], position: 'center', style: 'headline' },
+          { text: 'An estate at the edge of the Rift Valley', range: [0, 0.25], position: 'lower-subline', style: 'subline' },
+          { text: 'Book Your Stay', range: [0.15, 0.45], position: 'lower-button', style: 'button' },
         ]}
       />
 

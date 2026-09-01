@@ -32,9 +32,9 @@ const styleClasses: Record<string, string> = {
   eyebrow:
     'text-gold text-[10px] sm:text-xs font-semibold tracking-[0.3em] uppercase',
   headline:
-    'font-serif text-4xl sm:text-5xl md:text-7xl text-white',
+    'font-display text-5xl sm:text-6xl md:text-8xl text-ivory tracking-[0.05em]',
   subline:
-    'text-gray-300 text-sm sm:text-base md:text-lg font-light leading-relaxed max-w-xl mx-auto',
+    'text-ivory/70 text-sm sm:text-base md:text-lg font-light leading-relaxed max-w-xl mx-auto italic',
   button:
     'inline-block border border-gold text-gold px-8 sm:px-10 py-3 sm:py-4 text-xs sm:text-sm tracking-[0.2em] uppercase font-semibold hover:bg-gold hover:text-black transition-colors duration-300 cursor-pointer',
 };
