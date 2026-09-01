@@ -67,6 +67,26 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
       title: 'Adama Hotel & Restaurant Settings',
       subtitle: 'Configure hotel profile, service hours, languages, and reservations',
     },
+    'departments': {
+      title: 'Departments Management',
+      subtitle: 'Manage organizational departments and their station assignments',
+    },
+    'stations': {
+      title: 'Stations Overview',
+      subtitle: 'Monitor station connectivity and manage device assignments',
+    },
+    'bookings': {
+      title: 'Bookings & Reservations',
+      subtitle: 'Manage reservations, check-ins, and guest bookings',
+    },
+    'guests': {
+      title: 'Guest Directory',
+      subtitle: 'Manage guest profiles and view booking history',
+    },
+    'roles': {
+      title: 'Roles & Permissions',
+      subtitle: 'Manage role-based access control and permission assignments',
+    },
   };
 
   const currentInfo = screenTitles[activeScreen];

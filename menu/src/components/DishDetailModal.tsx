@@ -1,4 +1,4 @@
-import { useState, useId } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Minus, Plus, Hourglass, Wine, Sparkles } from 'lucide-react';
 import { Dish, CartItem, DishOption } from '../types';
 
@@ -15,20 +15,53 @@ export function DishDetailModal({
   onClose,
   onAddToCart,
 }: DishDetailModalProps) {
-  if (!isOpen || !dish) return null;
-
-  const defaultCut = dish.cutSizes ? dish.cutSizes[0] : undefined;
+  const defaultCut = dish?.cutSizes ? dish.cutSizes[0] : undefined;
   const [selectedCut, setSelectedCut] = useState<DishOption | undefined>(defaultCut);
   const [selectedTemp, setSelectedTemp] = useState<string | undefined>(
-    dish.cookingTemps ? dish.cookingTemps[1] || dish.cookingTemps[0] : undefined
+    dish?.cookingTemps ? dish.cookingTemps[1] || dish.cookingTemps[0] : undefined
   );
   const [quantity, setQuantity] = useState(1);
   const [specialInstructions, setSpecialInstructions] = useState('');
+
+  useEffect(() => {
+    if (dish) {
+      setSelectedCut(dish.cutSizes ? dish.cutSizes[0] : undefined);
+      setSelectedTemp(
+        dish.cookingTemps ? dish.cookingTemps[1] || dish.cookingTemps[0] : undefined
+      );
+      setQuantity(1);
+      setSpecialInstructions('');
+    }
+  }, [dish?.id]);
+
+  if (!isOpen || !dish) return null;
 
   const basePrice = dish.price;
   const extraCutPrice = selectedCut ? selectedCut.extraPrice : 0;
   const unitPrice = basePrice + extraCutPrice;
   const totalPrice = unitPrice * quantity;
+
+  const findOptionIds = (): string[] => {
+    if (!dish.apiCustomizations) return [];
+    const ids: string[] = [];
+    for (const group of dish.apiCustomizations) {
+      if (selectedCut && group.groupName.toLowerCase().includes('size') ||
+          group.groupName.toLowerCase().includes('portion') ||
+          group.groupName.toLowerCase().includes('cut')) {
+        const match = group.options.find(
+          (o) => o.label === selectedCut.name && Number(o.priceDelta) === selectedCut.extraPrice
+        );
+        if (match) ids.push(match.id);
+      }
+      if (selectedTemp && (group.groupName.toLowerCase().includes('temp') ||
+          group.groupName.toLowerCase().includes('preparation') ||
+          group.groupName.toLowerCase().includes('cook'))) {
+        const match = group.options.find((o) => o.label === selectedTemp);
+        if (match) ids.push(match.id);
+      }
+    }
+    return ids;
+  };
 
   const handleAdd = () => {
     const cartItem: CartItem = {
@@ -39,6 +72,7 @@ export function DishDetailModal({
       selectedTemp,
       specialInstructions: specialInstructions.trim() || undefined,
       unitPrice,
+      selectedOptionIds: findOptionIds(),
     };
     onAddToCart(cartItem);
     onClose();
@@ -46,15 +80,12 @@ export function DishDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm transition-opacity duration-300">
-      {/* Backdrop click */}
       <div className="absolute inset-0" onClick={onClose} />
 
-      {/* Modal / Bottom Sheet Container */}
       <div
         id="modal-dish-detail"
         className="relative z-10 w-full max-w-md bg-[#13110e] border-t border-[#31291f] rounded-t-3xl overflow-hidden shadow-2xl max-h-[92dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
       >
-        {/* Top Drag Handle & Close */}
         <div className="pt-3 pb-1 px-4 flex items-center justify-between">
           <div className="w-12 h-1 bg-[#3a3227] rounded-full mx-auto" />
           <button
@@ -66,9 +97,7 @@ export function DishDetailModal({
           </button>
         </div>
 
-        {/* Scrollable Content */}
         <div className="overflow-y-auto px-5 pt-2 pb-6 space-y-5 flex-1">
-          {/* Hero Image */}
           <div className="relative rounded-2xl overflow-hidden bg-[#1a1714] shadow-md border border-[#2b251d] aspect-[16/11]">
             <img
               src={dish.image}
@@ -76,8 +105,7 @@ export function DishDetailModal({
               className="w-full h-full object-cover object-center filter brightness-95"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#13110e]/60 via-transparent to-black/20" />
-            
-            {/* Dietary Badge */}
+
             {dish.dietaryTags && dish.dietaryTags.length > 0 && (
               <div className="absolute top-3 left-3 flex gap-1.5">
                 {dish.dietaryTags.map((tag) => (
@@ -92,7 +120,6 @@ export function DishDetailModal({
             )}
           </div>
 
-          {/* Title and Sensory Description */}
           <div className="space-y-2">
             <h2
               id="dish-detail-title"
@@ -105,7 +132,6 @@ export function DishDetailModal({
             </p>
           </div>
 
-          {/* Sommelier Pairing Note if available */}
           {dish.pairing && (
             <div className="p-3 rounded-xl bg-[#1b1712] border border-[#332b21] flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-[#2a2217] flex items-center justify-center text-[#e5be52] shrink-0">
@@ -120,7 +146,6 @@ export function DishDetailModal({
             </div>
           )}
 
-          {/* Option: Cut Size Selector */}
           {dish.cutSizes && dish.cutSizes.length > 0 && (
             <div className="space-y-2.5 pt-1">
               <label className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-[#9f8f7a] uppercase">
@@ -155,7 +180,6 @@ export function DishDetailModal({
             </div>
           )}
 
-          {/* Option: Cooking Temperature Selector */}
           {dish.cookingTemps && dish.cookingTemps.length > 0 && (
             <div className="space-y-2.5 pt-1">
               <label className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-[#9f8f7a] uppercase">
@@ -185,7 +209,6 @@ export function DishDetailModal({
             </div>
           )}
 
-          {/* Special Requests input */}
           <div className="space-y-1.5 pt-1">
             <label className="text-[11px] font-medium tracking-wider text-[#8a7a67] uppercase">
               Chef Notes & Allergies (Optional)
@@ -200,9 +223,7 @@ export function DishDetailModal({
           </div>
         </div>
 
-        {/* Sticky Action Footer */}
         <div className="p-4 bg-[#100e0c] border-t border-[#262018] flex items-center gap-3">
-          {/* Quantity Stepper */}
           <div className="flex items-center bg-[#1b1713] border border-[#31291f] rounded-xl px-2 py-1 h-12">
             <button
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
@@ -224,7 +245,6 @@ export function DishDetailModal({
             </button>
           </div>
 
-          {/* Add To Cart Gold Button */}
           <button
             id="btn-confirm-add-cart"
             onClick={handleAdd}

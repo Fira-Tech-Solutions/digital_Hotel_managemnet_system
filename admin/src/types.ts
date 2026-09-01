@@ -5,7 +5,12 @@ export type ScreenType =
   | 'theme' 
   | 'qr-codes' 
   | 'staff' 
-  | 'settings';
+  | 'settings'
+  | 'departments'
+  | 'stations'
+  | 'bookings'
+  | 'guests'
+  | 'roles';
 
 export type UserRole = 'Manager' | 'Kitchen' | 'Waiter' | 'Sommelier' | 'Host';
 
@@ -127,4 +132,68 @@ export interface NotificationItem {
   type: 'order' | 'kitchen' | 'system' | 'staff';
   isRead: boolean;
   orderId?: string;
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  isActive: boolean;
+  stationCount: number;
+}
+
+export interface Station {
+  id: string;
+  name: string;
+  code: string;
+  departmentId: string;
+  departmentName: string;
+  isOnline: boolean;
+  lastSeen: string;
+  deviceInfo?: string;
+}
+
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED';
+
+export interface Booking {
+  id: string;
+  guestId: string;
+  guestName: string;
+  roomId: string;
+  roomNumber: string;
+  roomType: string;
+  checkIn: string;
+  checkOut: string;
+  status: BookingStatus;
+  total: number;
+  specialRequests: string;
+  createdAt: string;
+}
+
+export interface Guest {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  isVip: boolean;
+  bookingsCount: number;
+  createdAt: string;
+  bookings: Booking[];
+}
+
+export interface Permission {
+  id: string;
+  resource: string;
+  action: string;
+  description: string;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  description: string;
+  isSystem: boolean;
+  permissionCount: number;
+  permissions: Permission[];
 }

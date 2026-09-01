@@ -1,7 +1,14 @@
 import { useState, useMemo } from 'react';
-import { Search, SlidersHorizontal, Plus, Sparkles, Check } from 'lucide-react';
+import { Search, SlidersHorizontal, Plus, Sparkles } from 'lucide-react';
 import { Dish, CategoryId } from '../types';
-import { CATEGORIES } from '../data/menuData';
+
+const CATEGORY_LABELS: Record<string, string> = {
+  starters: 'Starters',
+  mains: 'Mains',
+  wine: 'Wine Cellar',
+  desserts: 'Desserts',
+  cocktails: 'Cocktails',
+};
 
 interface ExploreViewProps {
   dishes: Dish[];
@@ -18,6 +25,16 @@ export function ExploreView({
 }: ExploreViewProps) {
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('mains');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const availableCategories = useMemo(() => {
+    const catSet = new Set<string>();
+    dishes.forEach((d) => catSet.add(d.category));
+    const order: CategoryId[] = ['starters', 'mains', 'wine', 'desserts', 'cocktails'];
+    return order.filter((c) => catSet.has(c)).map((c) => ({
+      id: c,
+      name: CATEGORY_LABELS[c] || c,
+    }));
+  }, [dishes]);
 
   const filteredDishes = useMemo(() => {
     return dishes.filter((dish) => {
@@ -37,7 +54,6 @@ export function ExploreView({
 
   return (
     <div id="adama-explore-view" className="min-h-screen pb-28 pt-3 px-4 max-w-md mx-auto">
-      {/* Search Bar */}
       <div className="relative mb-3">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8a7e6d]" />
         <input
@@ -58,7 +74,6 @@ export function ExploreView({
         )}
       </div>
 
-      {/* Filters Button */}
       <div className="mb-4">
         <button
           id="btn-open-filters"
@@ -75,9 +90,8 @@ export function ExploreView({
         </button>
       </div>
 
-      {/* Category Pills (Horizontal Scroll) */}
       <div className="mb-5 overflow-x-auto no-scrollbar -mx-4 px-4 flex items-center gap-2.5">
-        {CATEGORIES.map((category) => {
+        {availableCategories.map((category) => {
           const isActive = selectedCategory === category.id && !searchQuery;
           return (
             <button
@@ -99,7 +113,6 @@ export function ExploreView({
         })}
       </div>
 
-      {/* Search results banner if searching */}
       {searchQuery && (
         <div className="mb-4 px-2 flex items-center justify-between text-xs text-[#a0907a]">
           <span>Found {filteredDishes.length} items for "{searchQuery}"</span>
@@ -112,7 +125,6 @@ export function ExploreView({
         </div>
       )}
 
-      {/* Dish List */}
       <div className="space-y-5">
         {filteredDishes.length === 0 ? (
           <div className="py-16 text-center text-[#8d7e6c] space-y-2">
@@ -127,7 +139,6 @@ export function ExploreView({
               onClick={() => onSelectDish(dish)}
               className="group cursor-pointer rounded-2xl bg-[#171411] border border-[#29241d] overflow-hidden hover:border-[#4d4233] transition-all duration-300 shadow-lg hover:shadow-2xl"
             >
-              {/* Image Container */}
               <div className="relative h-48 sm:h-52 w-full overflow-hidden bg-[#110f0d]">
                 <img
                   src={dish.image}
@@ -136,7 +147,6 @@ export function ExploreView({
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#171411] via-transparent to-black/30" />
 
-                {/* Dietary Tags (Top Left) */}
                 <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
                   {dish.dietaryTags?.map((tag) => (
                     <span
@@ -155,7 +165,6 @@ export function ExploreView({
                 </div>
               </div>
 
-              {/* Content Box */}
               <div className="p-4 pt-3 flex flex-col justify-between">
                 <div>
                   <h3 className="font-serif-luxury text-xl sm:text-[22px] font-bold text-[#f7f2ea] group-hover:text-[#f8df95] transition-colors leading-tight">
@@ -166,7 +175,6 @@ export function ExploreView({
                   </p>
                 </div>
 
-                {/* Price and Action Button */}
                 <div className="flex items-center justify-between mt-4 pt-1">
                   <div className="flex items-baseline gap-1.5">
                     <span className="font-serif-luxury text-xl font-bold text-[#e5be52]">

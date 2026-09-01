@@ -1,23 +1,45 @@
-import React, { useState } from 'react';
-import { 
-  DollarSign, 
-  Clock, 
-  TrendingUp, 
-  Receipt, 
-  Users, 
-  Download, 
-  ChevronRight, 
-  Calendar, 
-  Utensils, 
+import React, { useState, useEffect } from 'react';
+import {
+  DollarSign,
+  Clock,
+  TrendingUp,
+  Receipt,
+  Users,
+  Download,
+  ChevronRight,
+  Calendar,
+  Utensils,
   Crown,
   CheckCircle2
 } from 'lucide-react';
 import { Order, MenuItem } from '../types';
+import { apiRequest } from '../lib/api';
 
 interface DashboardScreenProps {
   orders: Order[];
   menuItems: MenuItem[];
   onNavigateToMenu: () => void;
+}
+
+interface DashboardStats {
+  occupancy: {
+    totalRooms: number;
+    occupiedRooms: number;
+    occupancyRate: number;
+  };
+  todayOrders: {
+    total: number;
+    revenue: number;
+    active: number;
+  };
+  activeServiceRequests: number;
+  roomStatusSummary: Record<string, number>;
+}
+
+interface TodayStats {
+  totalOrders: number;
+  revenue: number;
+  activeOrders: number;
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({
@@ -27,12 +49,22 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 }) => {
   const [timeRange, setTimeRange] = useState<'weekly' | 'monthly'>('weekly');
   const [exportNotice, setExportNotice] = useState<boolean>(false);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [todayStats, setTodayStats] = useState<TodayStats | null>(null);
+
+  useEffect(() => {
+    apiRequest<DashboardStats>('/api/admin/reports/dashboard')
+      .then(setDashboardStats)
+      .catch(() => {});
+    apiRequest<TodayStats>('/api/admin/orders/stats/today')
+      .then(setTodayStats)
+      .catch(() => {});
+  }, []);
 
   const completedOrders = orders.filter((o) => o.status === 'completed');
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.totalRevenue || 0), 4850);
-  const totalOrdersCount = orders.length + 135;
+  const totalRevenue = dashboardStats?.todayOrders?.revenue ?? todayStats?.revenue ?? orders.reduce((sum, o) => sum + (o.totalRevenue || 0), 0);
+  const totalOrdersCount = dashboardStats?.todayOrders?.total ?? todayStats?.totalOrders ?? orders.length;
 
-  // Chart data for 7 days
   const weeklyData = [
     { day: 'Mon', count: 85, revenue: 3200 },
     { day: 'Tue', count: 98, revenue: 3900 },
@@ -154,11 +186,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </div>
         </div>
 
-        {/* Card 4: Active Tables */}
+        {/* Card 4: Active Tables / Occupancy */}
         <div className="p-5 rounded-2xl bg-[#16191F] border border-slate-800/90 shadow-lg relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Active Tables
+              {dashboardStats ? 'Room Occupancy' : 'Active Tables'}
             </span>
             <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
               <Users className="w-4 h-4" />
@@ -168,15 +200,23 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           <div className="mt-3">
             <div className="flex items-baseline gap-2">
               <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-mono">
-                18
+                {dashboardStats ? dashboardStats.occupancy.occupiedRooms : 18}
               </span>
-              <span className="text-sm text-slate-400 font-medium">/ 24 tables</span>
+              <span className="text-sm text-slate-400 font-medium">
+                / {dashboardStats ? dashboardStats.occupancy.totalRooms : 24} {dashboardStats ? 'rooms' : 'tables'}
+              </span>
             </div>
-            {/* Occupancy progress bar */}
             <div className="mt-2.5 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-              <div className="bg-gradient-to-r from-amber-400 to-amber-500 h-1.5 rounded-full w-[75%]" />
+              <div
+                className="bg-gradient-to-r from-amber-400 to-amber-500 h-1.5 rounded-full"
+                style={{
+                  width: `${dashboardStats ? dashboardStats.occupancy.occupancyRate : 75}%`,
+                }}
+              />
             </div>
-            <span className="text-[11px] text-slate-400 mt-1 block">75% Dining Room Capacity</span>
+            <span className="text-[11px] text-slate-400 mt-1 block">
+              {dashboardStats ? dashboardStats.occupancy.occupancyRate : 75}% Capacity
+            </span>
           </div>
         </div>
       </div>
@@ -223,24 +263,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
               return (
                 <div key={item.day} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
-                  {/* Tooltip on hover */}
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-2 bg-slate-800 text-white text-[11px] px-2 py-1 rounded shadow-lg border border-slate-700 pointer-events-none z-10 font-mono whitespace-nowrap">
                     {item.count} orders (${item.revenue.toLocaleString()})
                   </div>
 
-                  {/* Bar */}
                   <div className="w-full max-w-[40px] bg-slate-800/80 rounded-t-lg relative overflow-hidden transition-all duration-300 group-hover:bg-slate-700 flex items-end" style={{ height: `${heightPercent}%` }}>
-                    <div 
+                    <div
                       className={`w-full rounded-t-lg transition-all duration-500 ${
-                        isToday 
-                          ? 'bg-gradient-to-t from-amber-500 to-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]' 
+                        isToday
+                          ? 'bg-gradient-to-t from-amber-500 to-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
                           : 'bg-gradient-to-t from-amber-500/40 to-amber-500/80'
                       }`}
                       style={{ height: '100%' }}
                     />
                   </div>
 
-                  {/* Day Label */}
                   <span className={`text-xs font-semibold ${isToday ? 'text-amber-400' : 'text-slate-400'}`}>
                     {item.day}
                   </span>
@@ -270,10 +307,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               {menuItems.slice(0, 4).map((item, idx) => (
                 <div key={item.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition-all">
                   <div className="flex items-center gap-3 min-w-0">
-                    <img 
-                      src={item.image} 
-                      alt={item.name} 
-                      className="w-10 h-10 rounded-lg object-cover border border-slate-700 flex-shrink-0" 
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-10 h-10 rounded-lg object-cover border border-slate-700 flex-shrink-0"
                     />
                     <div className="min-w-0">
                       <h4 className="text-xs font-bold text-slate-200 truncate">

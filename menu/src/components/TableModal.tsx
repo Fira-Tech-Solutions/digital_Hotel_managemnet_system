@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react';
-import { X, Check, MapPin, BedDouble } from 'lucide-react';
+import { X, Check, MapPin, BedDouble, Loader2 } from 'lucide-react';
+import { resolveTable } from '../lib/api';
 
 interface TableModalProps {
   isOpen: boolean;
@@ -7,6 +8,7 @@ interface TableModalProps {
   currentTable: string;
   currentSuite: string;
   onSave: (table: string, suite: string) => void;
+  onTableResolved?: (tableId: string, tableNumber: string, suite?: string) => void;
 }
 
 export function TableModal({
@@ -15,19 +17,45 @@ export function TableModal({
   currentTable,
   currentSuite,
   onSave,
+  onTableResolved,
 }: TableModalProps) {
   if (!isOpen) return null;
 
   const [table, setTable] = useState(currentTable);
   const [suite, setSuite] = useState(currentSuite);
+  const [qrToken, setQrToken] = useState('');
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
 
   const predefinedTables = [
-    'Table 12',
+    'Table 1',
     'Table 4 (Terrace)',
     'Table 8 (Chef Counter)',
+    'Table 12',
     'Table 16 (Private Salon)',
     'Booth 3 (Alcove)',
   ];
+
+  const handleResolveQr = async () => {
+    if (!qrToken.trim()) return;
+    setIsResolving(true);
+    setResolveError(null);
+    try {
+      const res = await resolveTable(qrToken.trim());
+      if (res.success && res.data) {
+        const resolvedTable = `Table ${res.data.tableNumber}`;
+        setTable(resolvedTable);
+        onSave(resolvedTable, suite);
+        onTableResolved?.(res.data.tableId, res.data.tableNumber, suite);
+        setQrToken('');
+        onClose();
+      }
+    } catch (err: any) {
+      setResolveError(err.message || 'Invalid QR code');
+    } finally {
+      setIsResolving(false);
+    }
+  };
 
   const handleSave = (e: FormEvent) => {
     e.preventDefault();
@@ -55,8 +83,41 @@ export function TableModal({
           </button>
         </div>
 
+        {/* QR Token Resolver */}
+        <div className="space-y-2">
+          <label className="block text-[11px] font-semibold tracking-wider text-[#d4af37] uppercase font-sans">
+            Scan QR Code (Token)
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={qrToken}
+              onChange={(e) => {
+                setQrToken(e.target.value);
+                setResolveError(null);
+              }}
+              placeholder="Paste QR token from table..."
+              className="flex-1 px-3 py-2.5 bg-[#181410] border border-[#2d261e] rounded-xl text-xs text-[#f0e8dc] focus:outline-none focus:border-[#e5be52]/80"
+            />
+            <button
+              type="button"
+              onClick={handleResolveQr}
+              disabled={isResolving || !qrToken.trim()}
+              className="px-3 py-2.5 rounded-xl bg-[#292015] border border-[#e5be52]/60 text-[#e5be52] text-xs font-semibold hover:bg-[#332a1a] disabled:opacity-40 transition-colors flex items-center gap-1.5"
+            >
+              {isResolving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                'Resolve'
+              )}
+            </button>
+          </div>
+          {resolveError && (
+            <p className="text-[11px] text-red-400">{resolveError}</p>
+          )}
+        </div>
+
         <form onSubmit={handleSave} className="space-y-4">
-          {/* Table Selection */}
           <div className="space-y-2">
             <label className="block text-[11px] font-semibold tracking-wider text-[#d4af37] uppercase font-sans">
               Select Dining Table
@@ -80,7 +141,6 @@ export function TableModal({
             </div>
           </div>
 
-          {/* Suite Number Input */}
           <div className="space-y-1.5 pt-1">
             <label className="block text-[11px] font-semibold tracking-wider text-[#d4af37] uppercase font-sans">
               Hotel Suite Folio
@@ -97,7 +157,6 @@ export function TableModal({
             </div>
           </div>
 
-          {/* Buttons */}
           <div className="pt-2 flex items-center gap-2.5">
             <button
               type="button"

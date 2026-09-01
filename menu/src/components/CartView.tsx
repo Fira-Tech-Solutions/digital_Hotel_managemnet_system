@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Minus, Plus, Trash2, ArrowRight, BedDouble, Utensils } from 'lucide-react';
+import { Minus, Plus, Trash2, ArrowRight, BedDouble, Utensils, Loader2 } from 'lucide-react';
 import { CartItem } from '../types';
 
 interface CartViewProps {
@@ -7,7 +7,7 @@ interface CartViewProps {
   onUpdateQuantity: (cartId: string, newQuantity: number) => void;
   onRemoveItem: (cartId: string) => void;
   onClearCart: () => void;
-  onSubmitOrder: (specialRequests: string) => void;
+  onSubmitOrder: (specialRequests: string) => void | Promise<void>;
   onBackToMenu: () => void;
   suiteNumber: string;
 }
@@ -28,17 +28,18 @@ export function CartView({
     (sum, item) => sum + item.unitPrice * item.quantity,
     0
   );
-  const serviceChargeRate = 0.125; // 12.5%
+  const serviceChargeRate = 0.125;
   const serviceCharge = subtotal * serviceChargeRate;
   const total = subtotal + serviceCharge;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (cart.length === 0) return;
     setIsSubmitting(true);
-    setTimeout(() => {
-      onSubmitOrder(specialRequests);
+    try {
+      await onSubmitOrder(specialRequests);
+    } finally {
       setIsSubmitting(false);
-    }, 600);
+    }
   };
 
   if (cart.length === 0) {
@@ -68,7 +69,6 @@ export function CartView({
 
   return (
     <div id="adama-cart-view" className="min-h-screen pb-32 pt-2 px-4 max-w-md mx-auto space-y-5">
-      {/* Title Header */}
       <div className="pt-2">
         <h2
           id="cart-title"
@@ -81,7 +81,6 @@ export function CartView({
         </p>
       </div>
 
-      {/* Cart Items List */}
       <div className="space-y-3">
         {cart.map((item) => (
           <div
@@ -89,7 +88,6 @@ export function CartView({
             id={`cart-item-${item.cartId}`}
             className="p-3.5 rounded-2xl bg-[#161310] border border-[#2b251d] flex items-center gap-3.5 shadow-md"
           >
-            {/* Thumbnail */}
             <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-[#201b15] shrink-0 border border-[#382f24]">
               <img
                 src={item.dish.image}
@@ -98,12 +96,11 @@ export function CartView({
               />
             </div>
 
-            {/* Middle Details */}
             <div className="flex-1 min-w-0 pr-1">
               <h3 className="font-serif-luxury text-base sm:text-lg font-bold text-[#f3ebde] truncate leading-tight">
                 {item.dish.name}
               </h3>
-              
+
               <div className="text-[11px] text-[#9c8e7b] mt-0.5 space-y-0.5">
                 {item.selectedCutSize && (
                   <p>{item.selectedCutSize.name}</p>
@@ -119,7 +116,6 @@ export function CartView({
               </div>
             </div>
 
-            {/* Right: Price & Stepper */}
             <div className="flex flex-col items-end justify-between shrink-0 h-full py-0.5 gap-2">
               <span className="font-serif-luxury text-base font-bold text-[#e5be52]">
                 ${(item.unitPrice * item.quantity).toFixed(2)}
@@ -149,7 +145,6 @@ export function CartView({
         ))}
       </div>
 
-      {/* Special Requests Box */}
       <div className="p-4 rounded-2xl bg-[#161310] border border-[#2b251d] space-y-2">
         <label
           htmlFor="textarea-special-requests"
@@ -167,7 +162,6 @@ export function CartView({
         />
       </div>
 
-      {/* Subtotal / Summary & Submit Box */}
       <div className="p-5 rounded-2xl bg-[#161310] border border-[#2b251d] space-y-4 shadow-xl">
         <div className="space-y-2 text-xs">
           <div className="flex items-center justify-between text-[#a0907c]">
@@ -189,18 +183,25 @@ export function CartView({
           </span>
         </div>
 
-        {/* Submit Order Gold Button */}
         <button
           id="btn-submit-order"
           onClick={handleSubmit}
           disabled={isSubmitting}
           className="w-full py-4 rounded-xl bg-[#e5be52] hover:bg-[#f3cc5e] active:scale-[0.98] text-[#0e0d0b] font-serif-luxury font-bold text-xl tracking-wide transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-[#e5be52]/20 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <span>{isSubmitting ? 'Transmitting to Kitchen...' : 'Submit Order'}</span>
-          {!isSubmitting && <ArrowRight className="w-5 h-5 stroke-[2.5]" />}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Transmitting to Kitchen...</span>
+            </>
+          ) : (
+            <>
+              <span>Submit Order</span>
+              <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+            </>
+          )}
         </button>
 
-        {/* Charge to Suite subtext */}
         <div className="flex items-center justify-center gap-1.5 text-[11px] tracking-widest text-[#9e8f7a] uppercase font-medium pt-1">
           <BedDouble className="w-3.5 h-3.5 text-[#e5c365]" />
           <span>Charged to {suiteNumber}</span>

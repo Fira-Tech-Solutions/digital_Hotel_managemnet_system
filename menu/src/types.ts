@@ -8,6 +8,12 @@ export interface DishOption {
   extraPrice: number;
 }
 
+export interface ApiCustomizationRef {
+  groupId: string;
+  groupName: string;
+  options: { id: string; label: string; priceDelta: number }[];
+}
+
 export interface Dish {
   id: string;
   name: string;
@@ -23,6 +29,7 @@ export interface Dish {
   pairing?: string;
   calories?: number;
   isPopular?: boolean;
+  apiCustomizations?: ApiCustomizationRef[];
 }
 
 export interface CartItem {
@@ -33,6 +40,7 @@ export interface CartItem {
   selectedTemp?: string;
   specialInstructions?: string;
   unitPrice: number;
+  selectedOptionIds?: string[];
 }
 
 export type OrderStatusStep = 'received' | 'accepted' | 'preparing' | 'ready' | 'served';

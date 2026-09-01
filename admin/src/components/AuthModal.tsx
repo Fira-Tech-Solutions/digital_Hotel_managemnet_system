@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Lock, ShieldCheck, ArrowRight, UserCheck, CheckCircle2, X } from 'lucide-react';
-import { UserProfile, UserRole } from '../types';
-import { INITIAL_USERS } from '../mockData';
+import { UserProfile } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 import { HotelLogo } from './HotelLogo';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentUser: UserProfile;
+  currentUser: UserProfile | null;
   onSelectUser: (user: UserProfile) => void;
 }
 
@@ -17,46 +17,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   currentUser,
   onSelectUser,
 }) => {
-  const [selectedRole, setSelectedRole] = useState<'Kitchen' | 'Manager'>('Kitchen');
-  const [emailInput, setEmailInput] = useState('chef.marco@hoteladmin.com');
-  const [passwordInput, setPasswordInput] = useState('••••••••••••');
-  const [rememberMe, setRememberMe] = useState(true);
+  const { login, user: authUser, switchUser, logout } = useAuth();
+  const [emailInput, setEmailInput] = useState('admin@adama.com');
+  const [passwordInput, setPasswordInput] = useState('');
   const [authSuccess, setAuthSuccess] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleRoleTab = (role: 'Kitchen' | 'Manager') => {
-    setSelectedRole(role);
-    if (role === 'Kitchen') {
-      setEmailInput('chef.marco@hoteladmin.com');
-    } else {
-      setEmailInput('elena.r@hoteladmin.com');
+  const handleAuthenticate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setIsLoading(true);
+    try {
+      await login(emailInput, passwordInput);
+      setAuthSuccess(true);
+      setTimeout(() => {
+        setAuthSuccess(false);
+        onClose();
+      }, 600);
+    } catch (err: any) {
+      setAuthError(err?.message || 'Login failed. Check your credentials.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleAuthenticate = (e: React.FormEvent) => {
-    e.preventDefault();
-    const matchedUser = INITIAL_USERS.find(
-      (u) => u.email.toLowerCase() === emailInput.toLowerCase() || u.role === selectedRole
-    ) || INITIAL_USERS[0];
-
-    setAuthSuccess(true);
-    setTimeout(() => {
-      onSelectUser(matchedUser);
-      setAuthSuccess(false);
-      onClose();
-    }, 600);
-  };
-
-  const handleQuickSelect = (user: UserProfile) => {
-    onSelectUser(user);
+  const handleQuickSelect = () => {
+    // Already logged in, just close
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
       {/* Modal Container */}
-      <div 
+      <div
         id="auth-modal-card"
         className="relative w-full max-w-md bg-[#13171D] border border-slate-700/70 rounded-2xl shadow-2xl overflow-hidden p-6 sm:p-8 text-slate-200"
       >
@@ -93,48 +89,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </p>
         </div>
 
-        {/* Role Segmented Tabs */}
-        <div className="grid grid-cols-2 p-1 bg-slate-900/90 rounded-xl border border-slate-800 mb-5">
-          <button
-            type="button"
-            id="auth-tab-kitchen"
-            onClick={() => handleRoleTab('Kitchen')}
-            className={`py-2 text-xs font-semibold rounded-lg transition-all ${
-              selectedRole === 'Kitchen'
-                ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Kitchen Staff
-          </button>
-          <button
-            type="button"
-            id="auth-tab-manager"
-            onClick={() => handleRoleTab('Manager')}
-            className={`py-2 text-xs font-semibold rounded-lg transition-all ${
-              selectedRole === 'Manager'
-                ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Manager
-          </button>
-        </div>
+        {/* Error message */}
+        {authError && (
+          <div className="mb-4 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs text-center">
+            {authError}
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleAuthenticate} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Staff ID or Email
+              Staff Email
             </label>
             <input
-              type="text"
+              type="email"
               id="auth-input-email"
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
               required
               className="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-              placeholder="e.g. chef.marco@hoteladmin.com"
+              placeholder="e.g. admin@adama.com"
             />
           </div>
 
@@ -154,32 +129,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onChange={(e) => setPasswordInput(e.target.value)}
               required
               className="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-              placeholder="••••••••••••"
+              placeholder="Enter your password"
             />
-          </div>
-
-          <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500"
-              />
-              <span>Remember this terminal</span>
-            </label>
           </div>
 
           <button
             type="submit"
             id="btn-auth-submit"
-            className="w-full py-3 px-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all transform active:scale-[0.98] cursor-pointer"
+            disabled={isLoading}
+            className="w-full py-3 px-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all transform active:scale-[0.98] cursor-pointer disabled:opacity-50"
           >
             {authSuccess ? (
               <>
                 <CheckCircle2 className="w-4 h-4 text-slate-950 animate-bounce" />
                 <span>Authorized! Loading terminal...</span>
               </>
+            ) : isLoading ? (
+              <span>Authenticating...</span>
             ) : (
               <>
                 <span>Authenticate</span>
@@ -189,36 +155,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </form>
 
-        {/* Quick switch profile shortcuts */}
-        <div className="mt-6 pt-5 border-t border-slate-800">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2.5 text-center">
-            Quick Switch Active Profile
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            {INITIAL_USERS.slice(0, 3).map((user) => (
+        {/* Currently logged in as */}
+        {currentUser && (
+          <div className="mt-6 pt-5 border-t border-slate-800">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2.5 text-center">
+              Currently Logged In
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              {currentUser.avatar ? (
+                <img src={currentUser.avatar} alt={currentUser.name} className="w-10 h-10 rounded-full object-cover border border-amber-500/40" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 font-bold text-sm flex items-center justify-center border border-amber-500/40">
+                  {currentUser.initials || currentUser.name.slice(0, 2).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <span className="text-sm font-bold text-white block">{currentUser.name}</span>
+                <span className="text-[11px] text-amber-400">{currentUser.role}</span>
+              </div>
               <button
-                key={user.id}
-                type="button"
-                onClick={() => handleQuickSelect(user)}
-                className={`p-2 rounded-xl text-left border transition-all flex flex-col items-center text-center ${
-                  currentUser.id === user.id
-                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-300'
-                    : 'border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-300'
-                }`}
+                onClick={() => {
+                  logout();
+                  onClose();
+                }}
+                className="ml-2 px-3 py-1 rounded-lg text-xs text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
               >
-                {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full mb-1 object-cover" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-700 text-xs font-bold flex items-center justify-center mb-1">
-                    {user.initials}
-                  </div>
-                )}
-                <span className="text-[11px] font-semibold truncate w-full">{user.name}</span>
-                <span className="text-[10px] text-slate-400">{user.role}</span>
+                Sign Out
               </button>
-            ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Footer Security Badge */}
         <div className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">

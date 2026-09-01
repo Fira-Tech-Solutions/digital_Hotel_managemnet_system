@@ -102,3 +102,142 @@ exports.updateStaff = catchAsync(async (req, res) => {
 
   res.json({ success: true, data: { id: staff.id, name: staff.name, role: staff.role, isActive: staff.isActive } });
 });
+
+// ==========================================================
+// Roles & Permissions
+// ==========================================================
+
+// GET /api/admin/auth/roles
+exports.listRoles = catchAsync(async (req, res) => {
+  const roles = await prisma.role.findMany({
+    include: {
+      _count: { select: { permissions: true } },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  const data = roles.map((r) => ({
+    id: r.id,
+    name: r.name,
+    description: r.description,
+    isSystem: r.isSystem,
+    permissionCount: r._count.permissions,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }));
+
+  res.json({ success: true, data });
+});
+
+// GET /api/admin/auth/roles/:id
+exports.getRole = catchAsync(async (req, res) => {
+  const role = await prisma.role.findUnique({
+    where: { id: req.params.id },
+    include: {
+      permissions: {
+        include: { permission: true },
+      },
+    },
+  });
+
+  if (!role) throw new ApiError(404, 'Role not found');
+
+  const data = {
+    id: role.id,
+    name: role.name,
+    description: role.description,
+    isSystem: role.isSystem,
+    permissions: role.permissions.map((rp) => ({
+      id: rp.permission.id,
+      resource: rp.permission.resource,
+      action: rp.permission.action,
+      description: rp.permission.description,
+    })),
+    createdAt: role.createdAt,
+    updatedAt: role.updatedAt,
+  };
+
+  res.json({ success: true, data });
+});
+
+// POST /api/admin/auth/roles
+exports.createRole = catchAsync(async (req, res) => {
+  const { name, description } = z
+    .object({
+      name: z.string().min(1),
+      description: z.string().optional(),
+    })
+    .parse(req.body);
+
+  const existing = await prisma.role.findUnique({ where: { name } });
+  if (existing) throw new ApiError(409, 'A role with this name already exists');
+
+  const role = await prisma.role.create({
+    data: { name, description },
+  });
+
+  res.status(201).json({ success: true, data: role });
+});
+
+// PATCH /api/admin/auth/roles/:id/permissions
+exports.updateRolePermissions = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { permissionIds } = z
+    .object({ permissionIds: z.array(z.string().uuid()) })
+    .parse(req.body);
+
+  const role = await prisma.role.findUnique({ where: { id } });
+  if (!role) throw new ApiError(404, 'Role not found');
+
+  // Replace all permissions: delete existing, create new
+  await prisma.$transaction([
+    prisma.rolePermission.deleteMany({ where: { roleId: id } }),
+    prisma.rolePermission.createMany({
+      data: permissionIds.map((permissionId) => ({
+        roleId: id,
+        permissionId,
+      })),
+    }),
+  ]);
+
+  const updated = await prisma.role.findUnique({
+    where: { id },
+    include: {
+      permissions: {
+        include: { permission: true },
+      },
+    },
+  });
+
+  res.json({
+    success: true,
+    data: {
+      id: updated.id,
+      name: updated.name,
+      permissions: updated.permissions.map((rp) => ({
+        id: rp.permission.id,
+        resource: rp.permission.resource,
+        action: rp.permission.action,
+      })),
+    },
+  });
+});
+
+// GET /api/admin/auth/permissions
+exports.getPermissions = catchAsync(async (req, res) => {
+  const permissions = await prisma.permission.findMany({
+    orderBy: [{ resource: 'asc' }, { action: 'asc' }],
+  });
+
+  const grouped = {};
+  for (const p of permissions) {
+    if (!grouped[p.resource]) grouped[p.resource] = [];
+    grouped[p.resource].push({
+      id: p.id,
+      action: p.action,
+      description: p.description,
+    });
+  }
+
+  res.json({ success: true, data: grouped });
+});
