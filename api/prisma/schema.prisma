@@ -245,6 +245,7 @@ model Staff {
   name            String
   email           String    @unique
   passwordHash    String
+  pinHash         String?   // 4-6 digit PIN for station login
   role            StaffRole @default(WAITER) // legacy field, kept for backward compat
   isActive        Boolean   @default(true)
   phone           String?

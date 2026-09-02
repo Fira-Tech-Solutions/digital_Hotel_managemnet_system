@@ -10,6 +10,11 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const pinLoginSchema = z.object({
+  pin: z.string().min(4).max(6),
+  hotelId: z.string().uuid(),
+});
+
 const signToken = (staff) =>
   jwt.sign({ staffId: staff.id, role: staff.role, hotelId: staff.hotelId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '12h',
@@ -46,10 +51,82 @@ exports.login = catchAsync(async (req, res) => {
   });
 });
 
+// POST /api/admin/auth/pin-login  -> station-based PIN authentication
+exports.pinLogin = catchAsync(async (req, res) => {
+  const { pin, hotelId } = pinLoginSchema.parse(req.body);
+
+  // Find staff by PIN hash within the hotel
+  const pinHash = await bcrypt.hash(pin, 10);
+  
+  // We need to compare since bcrypt hash differs per call — find all active staff in hotel
+  // and compare in memory (small N for single hotel)
+  const staffList = await prisma.staff.findMany({
+    where: { hotelId, isActive: true, pinHash: { not: null } },
+  });
+
+  let matchedStaff = null;
+  for (const s of staffList) {
+    const match = await bcrypt.compare(pin, s.pinHash);
+    if (match) {
+      matchedStaff = s;
+      break;
+    }
+  }
+
+  if (!matchedStaff) {
+    throw new ApiError(401, 'Invalid PIN');
+  }
+
+  // Update last login
+  await prisma.staff.update({
+    where: { id: matchedStaff.id },
+    data: { lastLoginAt: new Date() },
+  });
+
+  const token = signToken(matchedStaff);
+
+  res.json({
+    success: true,
+    data: {
+      token,
+      staff: {
+        id: matchedStaff.id,
+        name: matchedStaff.name,
+        email: matchedStaff.email,
+        role: matchedStaff.role,
+        hotelId: matchedStaff.hotelId,
+      },
+    },
+  });
+});
+
 // GET /api/admin/auth/me
 exports.me = catchAsync(async (req, res) => {
   const { id, name, email, role, hotelId } = req.staff;
   res.json({ success: true, data: { id, name, email, role, hotelId } });
+});
+
+// PATCH /api/admin/auth/staff/:id/pin  -> set/update station PIN
+const setPinSchema = z.object({ pin: z.string().min(4).max(6) });
+
+exports.setStaffPin = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { pin } = setPinSchema.parse(req.body);
+
+  const staff = await prisma.staff.findFirst({
+    where: { id, hotelId: req.staff.hotelId },
+  });
+  if (!staff) throw new ApiError(404, 'Staff not found');
+
+  const pinHash = await bcrypt.hash(pin, 10);
+
+  const updated = await prisma.staff.update({
+    where: { id },
+    data: { pinHash },
+    select: { id: true, name: true, email: true, role: true },
+  });
+
+  res.json({ success: true, data: updated });
 });
 
 // POST /api/admin/auth/staff  (invite/create staff — OWNER/MANAGER only)

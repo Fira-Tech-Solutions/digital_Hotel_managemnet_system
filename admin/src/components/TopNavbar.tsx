@@ -39,6 +39,26 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const screenTitles: Record<ScreenType, { title: string; subtitle: string }> = {
+    'command-center': {
+      title: 'Hotel Command Center',
+      subtitle: 'Real-time hotel operations overview and department status',
+    },
+    'kitchen-display': {
+      title: 'Kitchen Display System',
+      subtitle: 'Real-time order queue for kitchen stations',
+    },
+    'front-desk': {
+      title: 'Front Desk Operations',
+      subtitle: 'Guest check-in/out, room assignments, and arrivals/departures',
+    },
+    'housekeeping': {
+      title: 'Housekeeping Dashboard',
+      subtitle: 'Room status grid, cleaning tasks, and inspection tracking',
+    },
+    'bar': {
+      title: 'Bar Display',
+      subtitle: 'Beverage order queue for the bar team',
+    },
     'live-orders': {
       title: 'Kitchen Display & Live Orders',
       subtitle: 'Real-time order queue synchronized with tables and POS stations',

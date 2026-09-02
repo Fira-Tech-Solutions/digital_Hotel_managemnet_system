@@ -14,10 +14,19 @@ import {
   Building2,
   Monitor,
   CalendarCheck,
-  Shield
+  Shield,
+  CreditCard,
+  Wrench,
+  BedDouble,
+  ClipboardList,
+  BarChart3,
+  Command,
+  ChefHat,
+  Wine
 } from 'lucide-react';
 import { ScreenType } from '../types';
 import { HotelLogo } from './HotelLogo';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SidebarProps {
   activeScreen: ScreenType;
@@ -29,6 +38,22 @@ interface SidebarProps {
   isLoggedIn: boolean;
 }
 
+// Permission mapping for each screen
+const screenPermissions: Partial<Record<ScreenType, [string, string]>> = {
+  'live-orders': ['orders', 'read'],
+  dashboard: ['reports', 'read'],
+  menu: ['menu', 'read'],
+  theme: ['settings', 'read'],
+  'qr-codes': ['rooms', 'read'],
+  staff: ['users', 'read'],
+  departments: ['departments', 'read'],
+  stations: ['stations', 'read'],
+  bookings: ['bookings', 'read'],
+  guests: ['guests', 'read'],
+  roles: ['roles', 'read'],
+  settings: ['settings', 'read'],
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({
   activeScreen,
   onSelectScreen,
@@ -38,26 +63,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAuth,
   isLoggedIn,
 }) => {
-  const menuItems: {
+  const { hasPermission, hasAnyPermission } = useAuth();
+
+    const allMenuItems: {
     id: ScreenType;
     label: string;
     icon: React.ElementType;
     badge?: number;
     section?: string;
+    permission?: [string, string];
   }[] = [
-    { id: 'live-orders', label: 'Live Orders', icon: UtensilsCrossed, badge: pendingOrdersCount },
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'menu', label: 'Menu', icon: BookOpen },
-    { id: 'theme', label: 'Theme', icon: Palette },
-    { id: 'qr-codes', label: 'QR Codes', icon: QrCode },
-    { id: 'staff', label: 'Staff', icon: Users },
-    { id: 'departments', label: 'Departments', icon: Building2, section: 'enterprise' },
-    { id: 'stations', label: 'Stations', icon: Monitor, section: 'enterprise' },
-    { id: 'bookings', label: 'Bookings', icon: CalendarCheck, section: 'enterprise' },
-    { id: 'guests', label: 'Guests', icon: Users, section: 'enterprise' },
-    { id: 'roles', label: 'Roles', icon: Shield, section: 'enterprise' },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'command-center', label: 'Command Center', icon: Command, permission: ['reports', 'read'] },
+    { id: 'live-orders', label: 'Live Orders', icon: UtensilsCrossed, badge: pendingOrdersCount, permission: ['orders', 'read'] },
+    { id: 'dashboard', label: 'Dining Overview', icon: LayoutDashboard, permission: ['reports', 'read'] },
+    { id: 'kitchen-display', label: 'Kitchen Display', icon: ChefHat, permission: ['orders', 'read'] },
+    { id: 'front-desk', label: 'Front Desk', icon: BedDouble, permission: ['bookings', 'read'] },
+    { id: 'housekeeping', label: 'Housekeeping', icon: Sparkles, permission: ['rooms', 'read'] },
+    { id: 'bar', label: 'Bar Display', icon: Wine, permission: ['orders', 'read'] },
+    { id: 'menu', label: 'Menu', icon: BookOpen, permission: ['menu', 'read'] },
+    { id: 'bookings', label: 'Bookings', icon: CalendarCheck, permission: ['bookings', 'read'] },
+    { id: 'guests', label: 'Guests', icon: Users, permission: ['guests', 'read'] },
+    { id: 'departments', label: 'Departments', icon: Building2, section: 'enterprise', permission: ['departments', 'read'] },
+    { id: 'stations', label: 'Stations', icon: Monitor, section: 'enterprise', permission: ['stations', 'read'] },
+    { id: 'roles', label: 'Roles & Permissions', icon: Shield, section: 'enterprise', permission: ['roles', 'read'] },
+    { id: 'staff', label: 'Staff', icon: Users, permission: ['users', 'read'] },
+    { id: 'theme', label: 'Theme', icon: Palette, permission: ['settings', 'read'] },
+    { id: 'qr-codes', label: 'QR Codes', icon: QrCode, permission: ['rooms', 'read'] },
+    { id: 'settings', label: 'Settings', icon: Settings, permission: ['settings', 'read'] },
   ];
+
+  // Filter items based on permissions
+  const menuItems = allMenuItems.filter((item) => {
+    if (!item.permission) return true;
+    return hasPermission(item.permission[0], item.permission[1]);
+  });
 
   return (
     <aside 

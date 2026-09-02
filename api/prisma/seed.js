@@ -294,7 +294,7 @@ async function main() {
       name: 'Fatima Hassan',
       email: 'frontdesk@adama-hotel.com',
       password: 'Front123!',
-      staffRole: 'MANAGER',
+      staffRole: 'WAITER',
       rbacRole: 'RECEPTIONIST',
       phone: '+251-91-100-0003',
     },
@@ -310,7 +310,7 @@ async function main() {
       name: 'Hiwot Mengistu',
       email: 'housekeeping@adama-hotel.com',
       password: 'House123!',
-      staffRole: 'MANAGER',
+      staffRole: 'WAITER',
       rbacRole: 'HOUSEKEEPING_MANAGER',
       phone: '+251-91-100-0005',
     },
@@ -319,7 +319,7 @@ async function main() {
       email: 'waiter@adama-hotel.com',
       password: 'Wait123!',
       staffRole: 'WAITER',
-      rbacRole: 'GUEST',
+      rbacRole: 'KITCHEN_SUPERVISOR',
       phone: '+251-91-100-0006',
     },
   ];
@@ -345,7 +345,13 @@ async function main() {
     }
     staffMembers[def.email] = staff;
 
-    // Assign RBAC role
+    // Update legacy role if wrong (Fatima/Hiwot should not be MANAGER)
+    if (staff.role !== def.staffRole) {
+      await prisma.staff.update({ where: { id: staff.id }, data: { role: def.staffRole } });
+      console.log(`  [~] Updated legacy role: ${staff.name} ${staff.role} -> ${def.staffRole}`);
+    }
+
+    // Assign RBAC role (skip if already assigned)
     const rbacRole = roles[def.rbacRole];
     if (rbacRole) {
       try {

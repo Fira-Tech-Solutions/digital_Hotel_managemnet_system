@@ -1,16 +1,15 @@
 const prisma = require('../utils/prisma');
 const ApiError = require('../utils/ApiError');
 
-// Permission cache scoped to the request lifecycle
-const permissionCache = new WeakMap();
+// Permission cache: Map<staffId, Set<string>> — cleared per-request via req-level store
+const permissionCache = new Map();
 
 /**
  * Returns a Set of permission strings (e.g. "rooms:read") for the given staff,
- * cached for the duration of the request.
+ * cached for the lifetime of the process (invalidated on role changes).
  */
 async function getStaffPermissions(staffId) {
-  const cacheKey = { staffId };
-  if (permissionCache.has(cacheKey)) return permissionCache.get(cacheKey);
+  if (permissionCache.has(staffId)) return permissionCache.get(staffId);
 
   const assignments = await prisma.staffRoleAssignment.findMany({
     where: { staffId },
@@ -32,25 +31,27 @@ async function getStaffPermissions(staffId) {
     }
   }
 
-  permissionCache.set(cacheKey, perms);
+  permissionCache.set(staffId, perms);
   return perms;
+}
+
+/**
+ * Clear cached permissions for a staff member (call after role changes).
+ */
+function clearStaffPermissions(staffId) {
+  permissionCache.delete(staffId);
 }
 
 /**
  * Middleware factory: requirePermission(resource, action)
  * Checks whether req.staff holds a permission matching `${resource}:${action}`.
- * Falls back to legacy role check (OWNER/MANAGER bypass) for backward compat.
+ * Uses only the RBAC system (StaffRoleAssignment) — no legacy role bypass.
  */
 function requirePermission(resource, action) {
   return async (req, res, next) => {
     try {
       if (!req.staff) {
         return next(new ApiError(401, 'Authentication required'));
-      }
-
-      // Legacy bypass: OWNER and MANAGER always pass
-      if (req.staff.role === 'OWNER' || req.staff.role === 'MANAGER') {
-        return next();
       }
 
       const perms = await getStaffPermissions(req.staff.id);
@@ -65,4 +66,12 @@ function requirePermission(resource, action) {
   };
 }
 
-module.exports = { requirePermission, getStaffPermissions };
+/**
+ * Build the full permission set for a staff member (for frontend consumption).
+ */
+async function getStaffPermissionSet(staffId) {
+  const perms = await getStaffPermissions(staffId);
+  return [...perms];
+}
+
+module.exports = { requirePermission, getStaffPermissions, getStaffPermissionSet, clearStaffPermissions };

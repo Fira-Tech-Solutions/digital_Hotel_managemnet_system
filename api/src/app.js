@@ -27,10 +27,17 @@ function createApp() {
     cors({
       origin: (origin, callback) => {
         // Allow requests with no origin (e.g. curl, mobile) and configured origins
-        if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        if (!origin || allowedOrigins.length === 0) {
           callback(null, true);
         } else {
-          callback(new Error(`Origin ${origin} not allowed by CORS`));
+          // Check full match or hostname-only match (e.g. "localhost:3000" matches "http://localhost:3000")
+          const hostname = origin.replace(/^https?:\/\//, '');
+          const isAllowed = allowedOrigins.some(o => o === origin || o === hostname);
+          if (isAllowed) {
+            callback(null, true);
+          } else {
+            callback(new Error(`Origin ${origin} not allowed by CORS`));
+          }
         }
       },
       credentials: true,

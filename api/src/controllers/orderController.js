@@ -4,6 +4,7 @@ const prisma = require('../utils/prisma');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { emitNewOrder, emitOrderUpdate } = require('../sockets');
+const { logAudit } = require('../utils/audit');
 
 // Full include shape reused across responses so guest + kitchen always see
 // consistent, complete order data.
@@ -195,6 +196,15 @@ exports.updateOrderStatus = catchAsync(async (req, res) => {
 
   // Pushes live updates to both the kitchen board and the guest's tracking screen.
   emitOrderUpdate(updated);
+
+  logAudit({
+    hotelId: req.staff.hotelId,
+    staffId: req.staff.id,
+    action: `order.${order.status.toLowerCase()}_to_${nextStatus.toLowerCase()}`,
+    resource: 'Order',
+    resourceId: order.id,
+    details: { orderNumber: order.orderNumber, from: order.status, to: nextStatus },
+  });
 
   res.json({ success: true, data: updated });
 });

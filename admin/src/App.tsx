@@ -37,6 +37,13 @@ import { QrCodeScreen } from './components/QrCodeScreen';
 import { StaffScreen } from './components/StaffScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { AuthModal } from './components/AuthModal';
+import { LoginPage } from './components/LoginPage';
+import { StationLogin } from './components/StationLogin';
+import { ExecutiveCommandCenter } from './components/ExecutiveCommandCenter';
+import { KitchenDisplayScreen } from './components/KitchenDisplayScreen';
+import { FrontDeskScreen } from './components/FrontDeskScreen';
+import { HousekeepingScreen } from './components/HousekeepingScreen';
+import { BarScreen } from './components/BarScreen';
 import { NotificationDrawer } from './components/NotificationDrawer';
 import { GuestMenuPreviewModal } from './components/GuestMenuPreviewModal';
 import { DepartmentsScreen } from './components/DepartmentsScreen';
@@ -188,6 +195,7 @@ function AppInner() {
   const [activeScreen, setActiveScreen] = useState<ScreenType>('live-orders');
   const [collapsedSidebar, setCollapsedSidebar] = useState<boolean>(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
+  const [loginMode, setLoginMode] = useState<'email' | 'station'>('email');
 
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
 
@@ -238,7 +246,7 @@ function AppInner() {
           apiRequest<any[]>('/api/admin/stations').catch(() => []),
           apiRequest<any[]>('/api/admin/bookings').catch(() => []),
           apiRequest<any[]>('/api/admin/guests').catch(() => []),
-          apiRequest<any[]>('/api/admin/roles').catch(() => []),
+          apiRequest<any[]>('/api/admin/auth/roles').catch(() => []),
         ]);
 
       if (ordersRes.status === 'fulfilled') {
@@ -326,8 +334,8 @@ function AppInner() {
       if (guestsRes.status === 'fulfilled') {
         setGuests(guestsRes.value.map((g: any) => ({
           id: g.id,
-          name: g.name,
-          email: g.email,
+          name: `${g.firstName || ''} ${g.lastName || ''}`.trim() || g.name || 'Guest',
+          email: g.email || '',
           phone: g.phone || '',
           isVip: g.isVip === true,
           bookingsCount: g._count?.bookings || 0,
@@ -335,7 +343,7 @@ function AppInner() {
           bookings: (g.bookings || []).map((b: any) => ({
             id: b.id,
             guestId: g.id,
-            guestName: g.name,
+            guestName: `${g.firstName || ''} ${g.lastName || ''}`.trim() || g.name || 'Guest',
             roomId: b.roomId || '',
             roomNumber: b.room?.number || 'N/A',
             roomType: b.room?.type || 'Standard',
@@ -374,6 +382,26 @@ function AppInner() {
       connectSocket();
     }
   }, [isAuthenticated, fetchAllData]);
+
+  // Set default screen based on role after login
+  useEffect(() => {
+    if (!currentUser) return;
+    const dept = (currentUser as any).department || currentUser.role;
+    switch (dept) {
+      case 'OWNER':
+      case 'MANAGER':
+        setActiveScreen('command-center');
+        break;
+      case 'KITCHEN':
+        setActiveScreen('kitchen-display');
+        break;
+      case 'WAITER':
+        setActiveScreen('live-orders');
+        break;
+      default:
+        setActiveScreen('live-orders');
+    }
+  }, [currentUser?.id]); // only on login/user change
 
   // Socket.IO listeners
   useEffect(() => {
@@ -930,7 +958,7 @@ function AppInner() {
     const newRole: Role = { ...data, id: `role-${Date.now()}`, permissionCount: 0, permissions: [] };
     setRoles((prev) => [...prev, newRole]);
     try {
-      const res = await apiRequest<any>('/api/admin/roles', {
+      const res = await apiRequest<any>('/api/admin/auth/roles', {
         method: 'POST',
         body: { name: data.name, description: data.description },
       });
@@ -952,7 +980,7 @@ function AppInner() {
       return r;
     }));
     try {
-      await apiRequest(`/api/admin/roles/${roleId}/permissions`, {
+      await apiRequest(`/api/admin/auth/roles/${roleId}/permissions`, {
         method: 'PUT',
         body: { permissionIds },
       });
@@ -964,7 +992,7 @@ function AppInner() {
   const handleDeleteRole = async (id: string) => {
     setRoles((prev) => prev.filter((r) => r.id !== id));
     try {
-      await apiRequest(`/api/admin/roles/${id}`, { method: 'DELETE' });
+      await apiRequest(`/api/admin/auth/roles/${id}`, { method: 'DELETE' });
     } catch {
       fetchAllData();
     }
@@ -973,22 +1001,28 @@ function AppInner() {
   const newOrdersCount = orders.filter((o) => o.status === 'new').length;
 
   if (!isAuthenticated) {
+    if (loginMode === 'station') {
+      return (
+        <div>
+          <StationLogin onLogin={() => {}} />
+          <button
+            onClick={() => setLoginMode('email')}
+            className="fixed bottom-4 right-4 z-50 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+          >
+            Use Email Login
+          </button>
+        </div>
+      );
+    }
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-[#121417]">
+      <div>
+        <LoginPage />
         <button
-          onClick={() => setIsAuthOpen(true)}
-          className="px-6 py-3 bg-amber-500 text-slate-950 font-bold rounded-xl shadow-lg hover:bg-amber-400 transition-all"
+          onClick={() => setLoginMode('station')}
+          className="fixed bottom-4 right-4 z-50 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-400 hover:bg-amber-500/20 transition-all"
         >
-          Login to Admin Panel
+          Station Login (PIN)
         </button>
-        <AuthModal
-          isOpen={isAuthOpen}
-          onClose={() => setIsAuthOpen(false)}
-          currentUser={currentUser!}
-          onSelectUser={(user) => {
-            switchUser(user);
-          }}
-        />
       </div>
     );
   }
@@ -1056,6 +1090,26 @@ function AppInner() {
 
         {/* Screen Router */}
         <main className="flex-1 flex flex-col overflow-hidden relative">
+          {activeScreen === 'command-center' && (
+            <ExecutiveCommandCenter />
+          )}
+
+          {activeScreen === 'kitchen-display' && (
+            <KitchenDisplayScreen />
+          )}
+
+          {activeScreen === 'front-desk' && (
+            <FrontDeskScreen />
+          )}
+
+          {activeScreen === 'housekeeping' && (
+            <HousekeepingScreen />
+          )}
+
+          {activeScreen === 'bar' && (
+            <BarScreen />
+          )}
+
           {activeScreen === 'live-orders' && (
             <LiveOrdersScreen
               orders={orders}

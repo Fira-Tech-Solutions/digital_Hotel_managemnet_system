@@ -1,5 +1,10 @@
-export type ScreenType = 
-  | 'live-orders' 
+export type ScreenType =
+  | 'command-center'
+  | 'kitchen-display'
+  | 'front-desk'
+  | 'housekeeping'
+  | 'bar'
+  | 'live-orders'
   | 'dashboard' 
   | 'menu' 
   | 'theme' 

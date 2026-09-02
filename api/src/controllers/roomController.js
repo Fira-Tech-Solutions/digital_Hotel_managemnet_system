@@ -2,6 +2,8 @@ const { z } = require('zod');
 const prisma = require('../utils/prisma');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
+const { logAudit } = require('../utils/audit');
+const { emitRoomStatusChanged } = require('../sockets');
 
 const createRoomSchema = z.object({
   roomTypeId: z.string().uuid(),
@@ -148,6 +150,18 @@ exports.updateRoomStatus = catchAsync(async (req, res) => {
     data: { status },
     include: { roomType: { select: { id: true, name: true } } },
   });
+
+  logAudit({
+    hotelId: req.staff.hotelId,
+    staffId: req.staff.id,
+    action: `room.status_changed`,
+    resource: 'Room',
+    resourceId: id,
+    details: { number: room.number, from: room.status, to: status },
+  });
+
+  // Emit real-time event
+  emitRoomStatusChanged(updated);
 
   res.json({ success: true, data: updated });
 });

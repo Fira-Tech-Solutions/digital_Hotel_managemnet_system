@@ -2,6 +2,8 @@ const { z } = require('zod');
 const prisma = require('../utils/prisma');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
+const { logAudit } = require('../utils/audit');
+const { emitServiceRequestNew, emitServiceRequestUpdate } = require('../sockets');
 
 const createServiceRequestSchema = z.object({
   guestId: z.string().uuid().optional().nullable(),
@@ -94,8 +96,20 @@ exports.createServiceRequest = catchAsync(async (req, res) => {
     },
     include: {
       guest: { select: { id: true, firstName: true, lastName: true } },
-      department: { select: { id: true, name: true } },
+      department: { select: { id: true, name: true, code: true } },
     },
+  });
+
+  // Emit real-time event
+  emitServiceRequestNew({ ...request, departmentCode: request.department?.code });
+
+  logAudit({
+    hotelId: req.staff.hotelId,
+    staffId: req.staff.id,
+    action: 'service_request.created',
+    resource: 'ServiceRequest',
+    resourceId: request.id,
+    details: { type: request.serviceType, priority: request.priority },
   });
 
   res.status(201).json({ success: true, data: request });
@@ -132,9 +146,21 @@ exports.updateServiceRequestStatus = catchAsync(async (req, res) => {
     data: updateData,
     include: {
       guest: { select: { id: true, firstName: true, lastName: true } },
-      department: { select: { id: true, name: true } },
+      department: { select: { id: true, name: true, code: true } },
       assignedStaff: { select: { id: true, name: true } },
     },
+  });
+
+  // Emit real-time event
+  emitServiceRequestUpdate({ ...updated, departmentCode: updated.department?.code });
+
+  logAudit({
+    hotelId: req.staff.hotelId,
+    staffId: req.staff.id,
+    action: `service_request.${request.status.toLowerCase()}_to_${nextStatus.toLowerCase()}`,
+    resource: 'ServiceRequest',
+    resourceId: id,
+    details: { type: request.serviceType, from: request.status, to: nextStatus },
   });
 
   res.json({ success: true, data: updated });

@@ -2,6 +2,8 @@ const { z } = require('zod');
 const prisma = require('../utils/prisma');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
+const { logAudit } = require('../utils/audit');
+const { emitBookingUpdated } = require('../sockets');
 
 const createBookingSchema = z.object({
   guestId: z.string().uuid(),
@@ -196,6 +198,22 @@ exports.updateBookingStatus = catchAsync(async (req, res) => {
       room: { select: { id: true, number: true } },
     },
   });
+
+  logAudit({
+    hotelId: req.staff.hotelId,
+    staffId: req.staff.id,
+    action: `booking.${booking.status.toLowerCase()}_to_${nextStatus.toLowerCase()}`,
+    resource: 'Booking',
+    resourceId: id,
+    details: {
+      guest: `${booking.guest?.firstName || ''} ${booking.guest?.lastName || ''}`.trim(),
+      from: booking.status,
+      to: nextStatus,
+    },
+  });
+
+  // Emit real-time event
+  emitBookingUpdated(updated);
 
   res.json({ success: true, data: updated });
 });
